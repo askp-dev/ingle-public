@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>Kioku</title>
+<title>Ingle</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Kioku is an audio-first assistant for people living with dementia and memory loss: a quiet voice in the ear for familiar faces, daily routines and the way home.">
+<meta name="description" content="Ingle is an audio-first assistant for people living with dementia and memory loss: a quiet voice in the ear for familiar faces, daily routines and the way home.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&display=swap">
 <style>
-/* Kioku design system, minimal stage. Layout: one large rounded panel pinned to the viewport holds a central
+/* Ingle design system, minimal stage. Layout: one large rounded panel pinned to the viewport holds a central
    Three.js bundle of "memory threads"; five short chapters scroll over it, then one quiet roadmap panel. */
 @font-face { font-family: "Kineks Round"; src: url("fonts/KineksRound-Light.otf") format("opentype"); font-weight: 300; font-display: swap; }
 @font-face { font-family: "Kineks Round"; src: url("fonts/KineksRound-SemiBold.otf") format("opentype"); font-weight: 600; font-display: swap; }
@@ -174,7 +174,7 @@ html.js { scroll-snap-type: y proximity; }
       </svg>
       <canvas id="threads" aria-hidden="true" hidden></canvas>
       <div class="chrome">
-        <div class="brand"><a href="#top" aria-label="Kioku, back to top">KIOKU</a><span class="mini" style="color:var(--ink-muted)">( <span lang="ja">記憶</span> )</span></div>
+        <div class="brand"><a href="#top" aria-label="Ingle, back to top">INGLE</a><span class="mini" style="color:var(--ink-muted)">( ING-gul )</span></div>
         <nav class="mini" aria-label="Chapters">
           <a href="#c-day">the idea<span aria-hidden="true">↓</span></a>
           <a href="#c-quiet">staying quiet<span aria-hidden="true">↓</span></a>
@@ -192,7 +192,7 @@ html.js { scroll-snap-type: y proximity; }
 
   <section class="chapter on" id="top" data-i="0" aria-labelledby="t1">
     <div class="inner">
-      <h1 id="t1"><span class="soft">kioku is</span>A quiet voice when memory slips.</h1>
+      <h1 id="t1"><span class="soft">ingle is</span>A quiet voice when memory slips.</h1>
       <p class="line">An audio-first second brain for people living with dementia and memory loss, set up by the people who care for them.</p>
     </div>
   </section>
@@ -247,7 +247,7 @@ html.js { scroll-snap-type: y proximity; }
 
   <div class="after" id="next">
     <section class="sheet" id="why" aria-labelledby="why-title">
-      <h2 id="why-title">Why Kioku</h2>
+      <h2 id="why-title">Why Ingle</h2>
       <p class="why-lede">Millions of people live with memory loss, and most of them are looked after by family. The help they need is constant, small and repeated: what day it is, who just walked in, which tablet, which door.</p>
       <dl class="stats">
         <div class="stat"><dt>57 million</dt><dd>people were living with dementia worldwide in 2021, with nearly 10 million new cases every year. <span class="src">(<a href="https://www.who.int/news-room/fact-sheets/detail/dementia">WHO</a>)</span></dd></div>
@@ -272,7 +272,7 @@ html.js { scroll-snap-type: y proximity; }
         <li><span class="when cap"><i></i>Beyond</span><h3>Care homes and more devices</h3><p>An on-site box that keeps each home's records in that home, an orchestrator tuned by what actually helps, and support for more glasses and an iOS hub.</p></li>
       </ol>
       <div class="sheet-foot mini">
-        <span><b>KIOKU</b> &nbsp;<span lang="ja">記憶</span> means memory.</span>
+        <span><b>INGLE</b> &nbsp;An old word for the fire on the hearth.</span>
         <span>A wellness and daily-living tool, not a medical device.</span>
         <span class="built">Built by <a href="https://askp.one">askp</a></span>
         <span>Music by <a href="https://pixabay.com/users/leberch-42823964/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=615225">Nikita Kondrashev</a> from <a href="https://pixabay.com/music/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=615225">Pixabay</a></span>
@@ -324,7 +324,7 @@ html.js { scroll-snap-type: y proximity; }
     clearTimeout(lineTimer);
     if (i !== spokenFor) spokenFor = -1;
     lineTimer = setTimeout(function () {
-      if (active === i && i >= 0 && CHAPTER_LINES[i] && spokenFor !== i && window.__kiokuSay) { spokenFor = i; window.__kiokuSay(CHAPTER_LINES[i].say, CHAPTER_LINES[i].clip); }
+      if (active === i && i >= 0 && CHAPTER_LINES[i] && spokenFor !== i && window.__ingleSay) { spokenFor = i; window.__ingleSay(CHAPTER_LINES[i].say, CHAPTER_LINES[i].clip); }
     }, 700);
   }
   window.addEventListener("scroll", syncChapter, { passive: true });
@@ -384,7 +384,7 @@ html.js { scroll-snap-type: y proximity; }
       } else speak(text);
     });
   }
-  window.__kiokuSay = say;
+  window.__ingleSay = say;
   function speak(text) {
     if (!soundOn || !synth || !window.SpeechSynthesisUtterance) return;
     synth.cancel();
@@ -427,7 +427,7 @@ html.js { scroll-snap-type: y proximity; }
     level += (target - level) * (target > level ? 0.5 : 0.12);
     return level;
   }
-  window.__kiokuLevel = musicLevel;
+  window.__ingleLevel = musicLevel;
   var glowEl = document.querySelector(".glow");
   if ((synth && window.SpeechSynthesisUtterance) || AC) {
     voiceBtn.hidden = false;
@@ -495,7 +495,7 @@ html.js { scroll-snap-type: y proximity; }
     { u: at(9, 0),   kind: "speak",  label: "09:00 · “The small white one, in the blue box by the kettle.”" },
     { u: at(10, 20), kind: "quiet",  label: "10:20 · A stranger passes. Nothing said, nothing kept." },
     { u: at(11, 45), kind: "speak",  say: "Lunch is at twelve thirty.", clip: "lunch", label: "11:45 · “Lunch is at twelve thirty.” Same words as before." },
-    { u: at(15, 30), kind: "quiet",  label: "15:30 · Mid-conversation. Kioku waits." },
+    { u: at(15, 30), kind: "quiet",  label: "15:30 · Mid-conversation. Ingle waits." },
     { u: at(17, 40), kind: "quiet",  label: "17:40 · Not sure who that is, so it stays quiet." },
     { u: at(19, 10), kind: "speak",  label: "19:10 · “It's time for your evening tablet.” Asked once, in the same words." },
     { u: at(19, 40), kind: "notify", label: "19:40 · Still not taken. The caregiver gets a quiet heads-up." },
