@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Kioku</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Kioku is an audio-first assistant for people living with dementia and memory loss: a quiet voice in the ear for familiar faces, daily routines and the way home.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&display=swap">
+<style>
+/* Kioku design system, minimal stage. Layout: one large rounded panel pinned to the viewport holds a central
+   Three.js bundle of "memory threads"; five short chapters scroll over it, then one quiet roadmap panel. */
+@font-face { font-family: "Kineks Round"; src: url("fonts/KineksRound-Light.otf") format("opentype"); font-weight: 300; font-display: swap; }
+@font-face { font-family: "Kineks Round"; src: url("fonts/KineksRound-SemiBold.otf") format("opentype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Kineks Round"; src: url("fonts/KineksRound-Bold.otf") format("opentype"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Headline One"; src: url("fonts/HeadlineOne-HPLHS.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+
+:root {
+  --forest: #1b211a; --moss: #628141; --moss-deep: #4f6a33; --sage: #8bae66; --sand: #ebd5ab; --amber: #ffa700;
+  --ground: #d4d7cb;      /* page around the panel (brand line, deepened) */
+  --panel: #efede6;       /* the stage */
+  --ink: #1b211a; --ink-muted: #5c6359; --line: #c9cdbf;
+  /* thread palette read by the scene */
+  --thread-past: #1b211a; --thread-future: #a9ae9c; --thread-rim: #628141;
+  --font-brand: "Kineks Round", system-ui, sans-serif;
+  --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-display: "Headline One", Impact, "Arial Narrow", sans-serif;
+  --radius-lg: 20px; --radius-full: 9999px;
+  --inset: clamp(10px, 2vw, 28px);
+  --pad: clamp(18px, 3vw, 40px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #111510; --panel: #1b211a; --ink: #f3ead6; --ink-muted: #a3a99f; --line: #3a4636;
+    --thread-past: #ebd5ab; --thread-future: #445240; --thread-rim: #8bae66;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #111510; --panel: #1b211a; --ink: #f3ead6; --ink-muted: #a3a99f; --line: #3a4636;
+  --thread-past: #ebd5ab; --thread-future: #445240; --thread-rim: #8bae66;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { background: var(--ground); color: var(--ink); font-family: var(--font-serif); font-size: 17px; line-height: 27px; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+p, h1, h2, h3 { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; border-radius: 4px; }
+.mini { font-family: var(--font-brand); font-weight: 600; font-size: 13px; line-height: 18px; letter-spacing: 0.02em; }
+.cap { font-family: var(--font-brand); font-weight: 700; font-size: 12px; line-height: 16px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-muted); }
+.skip { position: absolute; left: -999px; top: 0; z-index: 50; }
+.skip:focus { left: 16px; top: 8px; background: var(--panel); padding: 8px 12px; font-family: var(--font-brand); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--ground); }
+
+/* ---------- The stage ---------- */
+.story { position: relative; }
+.stage {
+  position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; height: 100svh; margin-bottom: -100vh; margin-bottom: -100svh;
+  padding: var(--inset) max(var(--inset), env(safe-area-inset-right, 0px)) var(--inset) max(var(--inset), env(safe-area-inset-left, 0px));
+  z-index: 0;
+}
+.panel { position: relative; height: 100%; border-radius: var(--radius-lg); background: var(--panel); overflow: hidden; isolation: isolate; }
+.glow { position: absolute; left: 18%; right: 18%; bottom: calc(var(--inset) * -0.5); height: 64px; border-radius: var(--radius-full); background: var(--amber); opacity: 0.28; filter: blur(42px); z-index: -1; pointer-events: none; }
+.panel canvas, .panel .still { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.chrome { position: absolute; inset: 0; padding: var(--pad); display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto 1fr auto; pointer-events: none; z-index: 2; }
+.chrome > * { pointer-events: auto; }
+.brand { display: grid; gap: 6px; align-content: start; }
+.brand a { text-decoration: none; font-family: var(--font-brand); font-weight: 700; font-size: 18px; letter-spacing: 0.08em; }
+.chrome nav { display: grid; gap: 4px; justify-items: end; align-content: start; }
+.chrome nav a { text-decoration: none; color: var(--ink); padding: 2px 0; }
+.chrome nav a span { color: var(--ink-muted); margin-left: 6px; }
+.chrome nav a:hover span { color: var(--moss-deep); }
+.counter { grid-column: 2; grid-row: 2; align-self: center; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.foot-l { grid-column: 1; grid-row: 3; align-self: end; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; color: var(--ink-muted); }
+.tag-line { display: flex; align-items: center; gap: 8px; }
+.voice { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 14px 6px 10px; border: 0; border-radius: 12px; background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); cursor: pointer; }
+.voice:hover { box-shadow: inset 0 0 0 1.5px var(--ink-muted); }
+.voice svg { width: 18px; height: 18px; }
+.voice .wave { opacity: 0.35; }
+.voice[aria-pressed="true"] { box-shadow: inset 0 0 0 1.5px var(--moss-deep); }
+.voice[aria-pressed="true"] .wave { opacity: 1; }
+.foot-l i { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--amber); display: inline-block; }
+.foot-r { grid-column: 2; grid-row: 3; align-self: end; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.moment { position: absolute; left: 0; top: 0; z-index: 1; max-width: 17rem; padding: 8px 12px; border-radius: 12px; background: var(--panel); border: 1.5px solid var(--line); font-family: var(--font-brand); font-weight: 600; font-size: 13px; line-height: 18px; color: var(--ink); opacity: 0; pointer-events: none; will-change: transform; }
+.moment.speak { border-color: var(--amber); }
+.moment.notify { border-color: var(--sand); }
+.moment.quiet { color: var(--ink-muted); }
+@media (max-width: 760px) { .moment { max-width: 13rem; } }
+
+/* ---------- Chapters (scroll over the stage) ---------- */
+.chapter {
+  position: relative; z-index: 1; min-height: 100vh; min-height: 100svh; pointer-events: none;
+  padding: calc(var(--inset) + var(--pad) + 84px) calc(max(var(--inset), env(safe-area-inset-right, 0px)) + var(--pad)) calc(var(--inset) + var(--pad) + 48px) calc(max(var(--inset), env(safe-area-inset-left, 0px)) + var(--pad));
+  display: flex; flex-direction: column; justify-content: flex-start;
+}
+.chapter .inner { max-width: min(46rem, 62%); display: grid; gap: 18px; }
+.chapter h1, .chapter h2 {
+  font-family: var(--font-display); font-weight: 400; text-transform: uppercase; color: var(--ink);
+  font-size: clamp(3.2rem, 1.2rem + 7.2vw, 9.5rem); line-height: 0.88; letter-spacing: 0.005em;
+}
+.chapter h1 .soft, .chapter h2 .soft { display: block; font-family: var(--font-brand); font-weight: 300; text-transform: lowercase; font-size: 0.34em; line-height: 1.1; letter-spacing: 0.02em; color: var(--ink-muted); margin-bottom: 0.15em; }
+.chapter p.line { font-size: clamp(17px, 1rem + 0.3vw, 20px); line-height: 1.5; color: var(--ink); max-width: 30ch; text-shadow: 0 0 12px var(--panel), 0 0 4px var(--panel); }
+/* With JS, every chapter's text is pinned to the same spot in the stage and cross-fades,
+   so it is always fully in place; the chapter sections are only scroll stops. */
+html.js { scroll-snap-type: y proximity; }
+.chapter, .after { scroll-snap-align: start; }
+.js .chapter .inner {
+  position: fixed; z-index: 1;
+  top: calc(env(safe-area-inset-top, 0px) + var(--inset) + var(--pad) + 84px);
+  left: calc(max(var(--inset), env(safe-area-inset-left, 0px)) + var(--pad));
+  transition: opacity 0.6s ease, transform 0.6s ease, visibility 0s linear 0.6s;
+  opacity: 0; visibility: hidden; transform: translateY(14px);
+}
+.js .chapter.on .inner { opacity: 1; visibility: visible; transform: none; transition: opacity 0.6s ease 0.15s, transform 0.6s ease 0.15s, visibility 0s; }
+@media (prefers-reduced-motion: reduce) { .js .chapter .inner, .js .chapter.on .inner { transition: none; transform: none; } }
+@media (max-width: 760px) {
+  .chapter { justify-content: flex-end; padding-bottom: calc(var(--inset) + var(--pad) + 40px); }
+  .chapter .inner { max-width: 100%; }
+  .js .chapter .inner { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--inset) + var(--pad) + 44px); right: calc(max(var(--inset), env(safe-area-inset-right, 0px)) + var(--pad)); }
+  .chapter p.line { max-width: 34ch; }
+  .chrome nav { display: none; }
+  .counter { grid-row: 1; align-self: start; }
+}
+
+/* ---------- After the story ---------- */
+.after { position: relative; z-index: 1; padding: var(--inset) max(var(--inset), env(safe-area-inset-right, 0px)) var(--inset) max(var(--inset), env(safe-area-inset-left, 0px)); }
+.sheet { border-radius: var(--radius-lg); background: var(--panel); padding: clamp(28px, 5vw, 72px) var(--pad); display: grid; gap: clamp(28px, 4vw, 56px); }
+.sheet h2 { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: clamp(2.6rem, 1.4rem + 4.6vw, 6rem); line-height: 0.9; }
+.road { list-style: none; margin: 0; padding: 0; display: grid; }
+.road li { display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 18rem) minmax(0, 1fr); gap: 8px 32px; padding: 20px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.road li:last-child { border-bottom: 1px solid var(--line); }
+.road .when { display: flex; align-items: center; gap: 8px; }
+.road .when i { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--sage); display: inline-block; }
+.road .now .when i { background: var(--amber); }
+.road h3 { font-family: var(--font-brand); font-weight: 600; font-size: 18px; line-height: 24px; }
+.road p { color: var(--ink-muted); font-size: 16px; line-height: 24px; max-width: 58ch; }
+@media (max-width: 760px) { .road li { grid-template-columns: minmax(0, 1fr); } }
+.sheet-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 32px; color: var(--ink-muted); }
+.sheet-foot b { font-family: var(--font-brand); font-weight: 700; letter-spacing: 0.08em; color: var(--ink); }
+.why-lede { font-size: clamp(1.15rem, 0.9rem + 0.8vw, 1.6rem); line-height: 1.4; max-width: 40ch; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; margin: 0; }
+.stat { border-top: 1px solid var(--line); padding-top: 20px; display: grid; gap: 8px; align-content: start; }
+.stat dt { font-family: var(--font-display); text-transform: uppercase; font-size: clamp(2.4rem, 1.6rem + 2.6vw, 4.2rem); line-height: 0.9; color: var(--ink); }
+.stat dd { margin: 0; color: var(--ink-muted); font-size: 16px; line-height: 24px; max-width: 34ch; }
+.stat .src { font-size: 13px; line-height: 20px; }
+.helps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; }
+.helps div { border-top: 1px solid var(--line); padding-top: 20px; display: grid; gap: 8px; align-content: start; }
+.helps h3 { font-family: var(--font-brand); font-weight: 600; font-size: 18px; line-height: 24px; }
+.helps p { color: var(--ink-muted); font-size: 16px; line-height: 24px; max-width: 52ch; }
+.why-note { color: var(--ink-muted); font-size: 13px; line-height: 20px; max-width: 70ch; }
+.after { display: grid; gap: var(--inset); }
+.built a { color: var(--ink); font-family: var(--font-brand); font-weight: 700; letter-spacing: 0.04em; }
+@media (max-width: 760px) { .stats { grid-template-columns: minmax(0, 1fr); gap: 20px; } .helps { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+
+
+<a class="skip" href="#main">Skip to content</a>
+
+<main id="main" class="story">
+  <div class="stage" aria-hidden="false">
+    <div class="panel">
+      <svg class="still" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <path d="M520 560 C420 420 560 240 760 260 S1080 420 980 560 S700 700 640 560 S760 300 900 230 S1120 180 1060 340 S820 520 760 430" fill="none" stroke="var(--thread-past)" stroke-width="4" stroke-linecap="round"/>
+        <g fill="var(--amber)"><circle cx="560" cy="380" r="9"/><circle cx="760" cy="260" r="9"/><circle cx="1010" cy="470" r="9"/><circle cx="900" cy="230" r="9"/></g>
+        <g fill="var(--sage)"><circle cx="680" cy="640" r="7"/><circle cx="1040" cy="300" r="7"/></g>
+      </svg>
+      <canvas id="threads" aria-hidden="true" hidden></canvas>
+      <div class="chrome">
+        <div class="brand"><a href="#top" aria-label="Kioku, back to top">KIOKU</a><span class="mini" style="color:var(--ink-muted)">( <span lang="ja">記憶</span> )</span></div>
+        <nav class="mini" aria-label="Chapters">
+          <a href="#c-day">the idea<span aria-hidden="true">↓</span></a>
+          <a href="#c-quiet">staying quiet<span aria-hidden="true">↓</span></a>
+          <a href="#c-privacy">privacy<span aria-hidden="true">↓</span></a>
+          <a href="#next">what's next<span aria-hidden="true">↓</span></a>
+        </nav>
+        <span class="counter mini" id="counter" aria-hidden="true">( 001 / 009 )</span>
+        <span class="foot-l"><button class="voice mini" id="voice" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span id="voice-label">Hear Wren</span></button><span class="cap tag-line"><i aria-hidden="true"></i>Your second brain.</span></span>
+        <span class="foot-r mini" id="dayclock" aria-hidden="true">( 07:00 )</span>
+      </div>
+      <div class="moment" id="moment" aria-hidden="true"></div>
+      <div class="glow" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <section class="chapter on" id="top" data-i="0" aria-labelledby="t1">
+    <div class="inner">
+      <h1 id="t1"><span class="soft">kioku is</span>A quiet voice when memory slips.</h1>
+      <p class="line">An audio-first second brain for people living with dementia and memory loss, set up by the people who care for them.</p>
+    </div>
+  </section>
+  <section class="chapter" id="c-day" data-i="1" aria-labelledby="t2">
+    <div class="inner">
+      <h2 id="t2"><span class="soft">good morning</span>Your day, gently.</h2>
+      <p class="line">Each morning Wren walks through what's ahead: who's coming, when meals are, what's planned. One calm summary, nothing to remember.</p>
+    </div>
+  </section>
+  <section class="chapter" id="c-maya" data-i="2" aria-labelledby="t3">
+    <div class="inner">
+      <h2 id="t3"><span class="soft">who's this?</span>That's Maya.</h2>
+      <p class="line">Everyday camera glasses and a phone whisper a name as someone approaches, before the greeting. There is no screen to learn.</p>
+    </div>
+  </section>
+  <section class="chapter" id="c-meds" data-i="3" aria-labelledby="t4">
+    <div class="inner">
+      <h2 id="t4"><span class="soft">the right one</span>The right tablet, at the right time.</h2>
+      <p class="line">Medication details come from a list the caregiver has checked, never guessed, so Wren always names the right one.</p>
+    </div>
+  </section>
+  <section class="chapter" id="c-quiet" data-i="4" aria-labelledby="t5">
+    <div class="inner">
+      <h2 id="t5"><span class="soft">the hard part</span>Knowing when to stay quiet.</h2>
+      <p class="line">A rules engine weighs every prompt against an interruption budget. It speaks when it helps, stays silent when unsure, and logs the reason.</p>
+    </div>
+  </section>
+  <section class="chapter" id="c-privacy" data-i="5" aria-labelledby="t6">
+    <div class="inner">
+      <h2 id="t6"><span class="soft">private by design</span>Only those who said yes.</h2>
+      <p class="line">It recognizes a consented circle, matches faces on the phone, and discards everyone else's frames.</p>
+    </div>
+  </section>
+  <section class="chapter" id="c-evening" data-i="6" aria-labelledby="t7">
+    <div class="inner">
+      <h2 id="t7"><span class="soft">and if one is missed</span>Asked once. Never louder.</h2>
+      <p class="line">Wren asks again in the same calm words. If the tablet still isn't taken, the caregiver gets a quiet heads-up instead.</p>
+    </div>
+  </section>
+  <section class="chapter" id="c-home" data-i="7" aria-labelledby="t8">
+    <div class="inner">
+      <h2 id="t8"><span class="soft">and next</span>The way home.</h2>
+      <p class="line">Guided walks past familiar landmarks, a caregiver app, and a private data home for every care home.</p>
+    </div>
+  </section>
+  <section class="chapter" id="c-night" data-i="8" aria-labelledby="t9">
+    <div class="inner">
+      <h2 id="t9"><span class="soft">at the end of the day</span>Good night.</h2>
+      <p class="line">A gentle close to the day for the person, and a short note for the caregiver on how it went.</p>
+    </div>
+  </section>
+
+  <div class="after" id="next">
+    <section class="sheet" id="why" aria-labelledby="why-title">
+      <h2 id="why-title">Why Kioku</h2>
+      <p class="why-lede">Millions of people live with memory loss, and most of them are looked after by family. The help they need is constant, small and repeated: what day it is, who just walked in, which tablet, which door.</p>
+      <dl class="stats">
+        <div class="stat"><dt>57 million</dt><dd>people were living with dementia worldwide in 2021, with nearly 10 million new cases every year. <span class="src">(<a href="https://www.who.int/news-room/fact-sheets/detail/dementia">WHO</a>)</span></dd></div>
+        <div class="stat"><dt>5 hours</dt><dd>of care and supervision a day, on average, from family and friends of someone living with dementia. <span class="src">(<a href="https://www.who.int/news-room/fact-sheets/detail/dementia">WHO</a>)</span></dd></div>
+        <div class="stat"><dt>19 billion</dt><dd>hours of unpaid care given in 2025 by nearly 13 million Americans looking after someone with Alzheimer&rsquo;s or another dementia. <span class="src">(<a href="https://www.alz.org/facts-and-figures">Alzheimer&rsquo;s Association</a>)</span></dd></div>
+      </dl>
+      <div class="helps">
+        <div><h3>For the person</h3><p>A calm voice that answers the same question the same way, every time, without a sigh. More of the day can be done on their own, in their own home, for longer.</p></div>
+        <div><h3>For the caregiver</h3><p>Wren takes the small, repeated prompts: names, reminders, the way back to the room. That leaves you time to rest, and the moments with you can be about being together, not keeping track.</p></div>
+        <div><h3>For care homes</h3><p>Every resident gets a patient, personal prompt when staff can&rsquo;t be in every room. Staff see a short note of what was asked and what was missed.</p></div>
+        <div><h3>Built on trust</h3><p>Wren only says what a caregiver has written and checked, recognizes only people who said yes, and keeps faces on the device. It stays quiet unless it&rsquo;s sure.</p></div>
+      </div>
+      <p class="why-note">Wren supports daily living. It doesn&rsquo;t diagnose or treat anything, and it doesn&rsquo;t replace a caregiver. It gives them some room to breathe.</p>
+    </section>
+    <section class="sheet" aria-labelledby="road-title">
+      <h2 id="road-title">What comes next</h2>
+      <ol class="road">
+        <li class="now"><span class="when cap"><i></i>Now</span><h3>The core loop</h3><p>An Android hub that recognizes a small enrolled circle and speaks one warm line, with a simulator for exploring a day without the glasses. Caregiver and care-home conversations shape every step.</p></li>
+        <li><span class="when cap"><i></i>Phase 1</span><h3>Phone and caregiver app</h3><p>Routines and reminders, a "who's this?" photo lookup, and geofencing with wandering alerts.</p></li>
+        <li><span class="when cap"><i></i>Phase 2</span><h3>The audio wearable</h3><p>Face prompts through everyday camera glasses, and "take me home" guided by landmarks a caregiver records in one walk through the building.</p></li>
+        <li><span class="when cap"><i></i>Phase 3</span><h3>An optional visual layer</h3><p>Gentle overlays, help finding misplaced objects, and memory of recent conversations.</p></li>
+        <li><span class="when cap"><i></i>Beyond</span><h3>Care homes and more devices</h3><p>An on-site box that keeps each home's records in that home, an orchestrator tuned by what actually helps, and support for more glasses and an iOS hub.</p></li>
+      </ol>
+      <div class="sheet-foot mini">
+        <span><b>KIOKU</b> &nbsp;<span lang="ja">記憶</span> means memory.</span>
+        <span>A wellness and daily-living tool, not a medical device.</span>
+        <span class="built">Built by <a href="https://askp.one">askp</a></span>
+        <span>Music by <a href="https://pixabay.com/users/leberch-42823964/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=615225">Nikita Kondrashev</a> from <a href="https://pixabay.com/music/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=615225">Pixabay</a></span>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  document.documentElement.classList.add("js");
+  var reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+  var reduce = reduceMQ.matches;
+
+  /* ---------- Chapters: which one is in view ---------- */
+  var chapters = [].slice.call(document.querySelectorAll(".chapter"));
+  var counter = document.getElementById("counter");
+  var active = 0;
+  function setActive(i) {
+    active = i;
+    chapters.forEach(function (c, k) { c.classList.toggle("on", k === i); });
+    counter.textContent = "( " + String(i + 1).padStart(3, "0") + " / " + String(chapters.length).padStart(3, "0") + " )";
+  }
+  /* Each chapter says only its own line, once the reader has settled on it. */
+  var CHAPTER_LINES = [null,
+    { clip: "morning", say: "Good morning. It's Tuesday. Maya is coming to see you soon, and lunch is at twelve thirty." },
+    { clip: "maya", say: "That's Maya, your granddaughter." },
+    { clip: "medicine", say: "It's time for your morning tablet. It's the small white one, in the blue box by the kettle." },
+    null, null,
+    { clip: "evening", say: "It's time for your evening tablet. It's in the blue box, by the kettle." },
+    { clip: "piano", say: "Go past the piano. Your room is the third door on the left." },
+    { clip: "goodnight", say: "It's been a good day. Maya came to see you, and you're all set for tomorrow. Good night." }];
+  var lineTimer = 0, spokenFor = -1;
+  function chapterFromScroll() {
+    var st = document.querySelector(".story"), nx = document.getElementById("next");
+    var total = st.offsetHeight - window.innerHeight - nx.offsetHeight;
+    if (window.scrollY > total + window.innerHeight * 0.45) return -1;
+    var p = Math.min(1, Math.max(0, window.scrollY / Math.max(1, total)));
+    return Math.round(p * (chapters.length - 1));
+  }
+  function syncChapter() {
+    var i = chapterFromScroll();
+    if (i === active) return;
+    active = i;
+    chapters.forEach(function (c, k) { c.classList.toggle("on", k === i); });
+    if (i >= 0) counter.textContent = "( " + String(i + 1).padStart(3, "0") + " / " + String(chapters.length).padStart(3, "0") + " )";
+    clearTimeout(lineTimer);
+    if (i !== spokenFor) spokenFor = -1;
+    lineTimer = setTimeout(function () {
+      if (active === i && i >= 0 && CHAPTER_LINES[i] && spokenFor !== i && window.__kiokuSay) { spokenFor = i; window.__kiokuSay(CHAPTER_LINES[i].say, CHAPTER_LINES[i].clip); }
+    }, 700);
+  }
+  window.addEventListener("scroll", syncChapter, { passive: true });
+  window.addEventListener("resize", syncChapter);
+  active = -2; syncChapter();
+
+
+  /* ---------- Sound: ambient piano that drives the pulse, plus the spoken moments ---------- */
+  var voiceBtn = document.getElementById("voice"), voiceLabel = document.getElementById("voice-label");
+  var synth = window.speechSynthesis, soundOn = false, chosen = null;
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var actx = null, music = null, musicGain = null, analyser = null, wave = null, loading = false;
+  var MUSIC_VOL = 0.5, level = 0, peak = 0.02;
+  function pickVoice() {
+    if (!synth) return;
+    var vs = synth.getVoices().filter(function (v) { return /^en(-|_|$)/i.test(v.lang); });
+    var prefs = [/natural/i, /neural/i, /premium|enhanced/i, /Samantha|Ava|Serena|Moira|Karen|Tessa/i, /Google UK English Female/i, /Google US English/i];
+    for (var i = 0; i < prefs.length && !chosen; i++) chosen = vs.filter(function (v) { return prefs[i].test(v.name); })[0] || null;
+    chosen = chosen || vs[0] || null;
+  }
+  function duck(on) {
+    if (!musicGain) return;
+    var t = actx.currentTime;
+    musicGain.gain.cancelScheduledValues(t);
+    musicGain.gain.setTargetAtTime(on ? MUSIC_VOL * 0.3 : MUSIC_VOL, t, on ? 0.15 : 0.6);
+  }
+  /* Recorded clips (voice/<name>.mp3) play when present; otherwise the browser's own voice reads the line. */
+  var clips = {}, playing = null;
+  function loadClip(name) {
+    if (!name || !actx) return Promise.resolve(null);
+    if (!(name in clips)) clips[name] = fetch("voice/" + name + ".mp3")
+      .then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })
+      .then(function (b) { return new Promise(function (res, rej) { actx.decodeAudioData(b, res, rej); }); })
+      .catch(function () { return null; });
+    return clips[name];
+  }
+  function say(text, clip) {
+    if (!soundOn) return;
+    loadClip(clip).then(function (buf) {
+      if (!soundOn) return;
+      if (buf) {
+        if (synth) synth.cancel();
+        if (playing) { try { playing.stop(); } catch (e) {} }
+        var src = actx.createBufferSource(); src.buffer = buf; src.connect(actx.destination);
+        src.onended = function () { if (playing === src) { playing = null; duck(false); } };
+        playing = src; duck(true); src.start();
+      } else speak(text);
+    });
+  }
+  window.__kiokuSay = say;
+  function speak(text) {
+    if (!soundOn || !synth || !window.SpeechSynthesisUtterance) return;
+    synth.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    if (chosen) u.voice = chosen;
+    u.rate = 0.9; u.pitch = 1; u.volume = 0.95;
+    u.onstart = function () { duck(true); };
+    u.onend = u.onerror = function () { duck(false); };
+    synth.speak(u);
+  }
+  function startMusic() {
+    if (!AC) return Promise.resolve();
+    if (!actx) actx = new AC();
+    if (actx.state === "suspended") actx.resume();
+    if (music || loading) return Promise.resolve();
+    loading = true;
+    return fetch("audio/ambient-piano.mp3").then(function (r) { if (!r.ok) throw new Error("audio " + r.status); return r.arrayBuffer(); })
+      .then(function (buf) { return new Promise(function (res, rej) { actx.decodeAudioData(buf, res, rej); }); })
+      .then(function (decoded) {
+        loading = false;
+        analyser = actx.createAnalyser(); analyser.fftSize = 1024; wave = new Uint8Array(analyser.fftSize);
+        musicGain = actx.createGain(); musicGain.gain.value = 0;
+        music = actx.createBufferSource(); music.buffer = decoded; music.loop = true;
+        music.connect(analyser); music.connect(musicGain); musicGain.connect(actx.destination);
+        music.start();
+        musicGain.gain.setTargetAtTime(MUSIC_VOL, actx.currentTime, 1.2);
+        if (!soundOn) actx.suspend();
+      })
+      .catch(function () { loading = false; });
+  }
+  /* 0..1 loudness of the music right now, normalised against its recent peak */
+  function musicLevel() {
+    if (!analyser || !soundOn || reduce) { level *= 0.9; return level; }
+    analyser.getByteTimeDomainData(wave);
+    var sum = 0;
+    for (var i = 0; i < wave.length; i++) { var v = (wave[i] - 128) / 128; sum += v * v; }
+    var rms = Math.sqrt(sum / wave.length);
+    peak = Math.max(rms, peak * 0.9995, 0.02);
+    var target = Math.min(1, rms / peak);
+    level += (target - level) * (target > level ? 0.5 : 0.12);
+    return level;
+  }
+  window.__kiokuLevel = musicLevel;
+  var glowEl = document.querySelector(".glow");
+  if ((synth && window.SpeechSynthesisUtterance) || AC) {
+    voiceBtn.hidden = false;
+    pickVoice();
+    if (synth && synth.addEventListener) synth.addEventListener("voiceschanged", function () { chosen = null; pickVoice(); });
+    voiceBtn.addEventListener("click", function () {
+      soundOn = !soundOn;
+      voiceBtn.setAttribute("aria-pressed", String(soundOn));
+      voiceLabel.textContent = soundOn ? "Sound on" : "Hear Wren";
+      if (soundOn) {
+        startMusic();
+        if (actx && actx.state === "suspended") actx.resume();
+        setTimeout(function () { say("Hello. I'm Wren. Scroll, and I'll talk you through a day.", "intro"); }, 900);
+      } else {
+        if (synth) synth.cancel();
+        if (actx) actx.suspend();
+      }
+    });
+    document.addEventListener("visibilitychange", function () {
+      if (!actx) return;
+      if (document.hidden) actx.suspend(); else if (soundOn) actx.resume();
+    });
+  }
+
+  /* ---------- Scene: a day as one thread ---------- */
+  var canvas = document.getElementById("threads");
+  var still = document.querySelector(".still");
+  var stage = document.querySelector(".stage");
+  var story = document.querySelector(".story");
+  var clockEl = document.getElementById("dayclock");
+  var momentEl = document.getElementById("moment");
+  if (typeof THREE === "undefined") return;
+  var renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true, powerPreference: "high-performance" }); }
+  catch (e) { return; }
+  canvas.hidden = false; still.setAttribute("hidden", "");
+
+  function token(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function isDark() { var c = new THREE.Color(token("--panel")); return (c.r + c.g + c.b) / 3 < 0.4; }
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
+  var world = new THREE.Group(); scene.add(world);
+  var small = window.innerWidth < 760;
+  var TAU = Math.PI * 2;
+
+  /* The day: one long, looping line from 07:00 to 21:00 */
+  var DAY_START = 7 * 60, DAY_LEN = 14 * 60;
+  var pts = [];
+  for (var i = 0; i <= 320; i++) {
+    var u = i / 320;
+    pts.push(new THREE.Vector3(
+      4.3 * Math.sin(TAU * u * 2.0) + 1.1 * Math.sin(TAU * u * 5.0 + 0.6),
+      2.1 * Math.sin(TAU * u * 3.0 + 0.7) + 0.4 * Math.cos(TAU * u * 7.0),
+      3.4 * Math.cos(TAU * u * 2.0) + 0.9 * Math.cos(TAU * u * 5.0 + 0.6)
+    ));
+  }
+  var curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
+
+  /* The moments of an example day. Spoken moments glow amber; quiet ones stay sage. */
+  function at(h, m) { return (h * 60 + m - DAY_START) / DAY_LEN; }
+  var MOMENTS = [
+    { u: at(8, 2),   kind: "speak",  say: "That's Maya, your granddaughter.", clip: "maya", label: "08:02 · “That's Maya, your granddaughter.”" },
+    { u: at(7, 30),  kind: "speak",  label: "07:30 · “Good morning. It's Tuesday.” The day, in one calm summary." },
+    { u: at(9, 0),   kind: "speak",  label: "09:00 · “The small white one, in the blue box by the kettle.”" },
+    { u: at(10, 20), kind: "quiet",  label: "10:20 · A stranger passes. Nothing said, nothing kept." },
+    { u: at(11, 45), kind: "speak",  say: "Lunch is at twelve thirty.", clip: "lunch", label: "11:45 · “Lunch is at twelve thirty.” Same words as before." },
+    { u: at(15, 30), kind: "quiet",  label: "15:30 · Mid-conversation. Kioku waits." },
+    { u: at(17, 40), kind: "quiet",  label: "17:40 · Not sure who that is, so it stays quiet." },
+    { u: at(19, 10), kind: "speak",  label: "19:10 · “It's time for your evening tablet.” Asked once, in the same words." },
+    { u: at(19, 40), kind: "notify", label: "19:40 · Still not taken. The caregiver gets a quiet heads-up." },
+    { u: at(20, 20), kind: "speak",  label: "20:20 · “Go past the piano. Your room is the third door on the left.”" },
+    { u: at(20, 55), kind: "speak",  label: "20:55 · “Good night.” A short note goes to the caregiver." }
+  ];
+
+  var U = {
+    uTime: { value: 0 }, uHead: { value: 0 },
+    uPast: { value: new THREE.Color() }, uFuture: { value: new THREE.Color() }, uRim: { value: new THREE.Color() },
+    uAmber: { value: new THREE.Color("#ffa700") }, uDark: { value: 0 }, uPulse: { value: 0 }
+  };
+  var tube = new THREE.TubeGeometry(curve, small ? 900 : 1600, 0.045, 8, false);
+  var threadMat = new THREE.ShaderMaterial({
+    uniforms: U,
+    vertexShader: [
+      "uniform float uTime; varying float vU; varying vec3 vN; varying vec3 vV;",
+      "void main(){",
+      "  vU = uv.x;",
+      "  vec3 p = position + normal * 0.012 * sin(uTime*1.2 + uv.x*90.0);",
+      "  vec4 mv = modelViewMatrix * vec4(p, 1.0);",
+      "  vN = normalize(normalMatrix * normal); vV = -mv.xyz;",
+      "  gl_Position = projectionMatrix * mv;",
+      "}"
+    ].join("\n"),
+    fragmentShader: [
+      "uniform float uPulse; uniform float uHead; uniform vec3 uPast; uniform vec3 uFuture; uniform vec3 uRim; uniform vec3 uAmber; uniform float uDark;",
+      "varying float vU; varying vec3 vN; varying vec3 vV;",
+      "void main(){",
+      "  vec3 n = normalize(vN); vec3 v = normalize(vV);",
+      "  float diff = 0.55 + 0.45*max(dot(n, normalize(vec3(0.4,0.8,0.6))), 0.0);",
+      "  float rim = pow(1.0 - abs(dot(n, v)), 2.0);",
+      "  float past = 1.0 - smoothstep(uHead - 0.004, uHead + 0.004, vU);",
+      "  vec3 c = mix(uFuture, uPast*diff + uRim*rim*0.4, past);",
+      "  float head = exp(-abs(vU - uHead) * mix(90.0, 45.0, uPulse)) * step(0.001, uHead);",
+      "  c = mix(c, uAmber, head * 0.9);",
+      "  gl_FragColor = vec4(c, 1.0);",
+      "}"
+    ].join("\n")
+  });
+  world.add(new THREE.Mesh(tube, threadMat));
+
+  /* Beads and the travelling head share one soft-dot shader */
+  function dotTex() {
+    var c = document.createElement("canvas"); c.width = c.height = 128;
+    var g = c.getContext("2d"), gr = g.createRadialGradient(64, 64, 14, 64, 64, 64);
+    gr.addColorStop(0, "rgba(255,255,255,0.32)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    g.beginPath(); g.arc(64, 64, 16, 0, TAU); g.fillStyle = "#fff"; g.fill();
+    return new THREE.CanvasTexture(c);
+  }
+  var tex = dotTex();
+  var COL = { speak: new THREE.Color("#ffa700"), quiet: new THREE.Color("#8bae66"), notify: new THREE.Color("#ebd5ab") };
+  var beads = MOMENTS.map(function (m) {
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    sp.position.copy(curve.getPointAt(m.u));
+    world.add(sp);
+    return { m: m, sp: sp, lit: 0 };
+  });
+  var head = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: COL.speak, transparent: true, depthWrite: false }));
+  world.add(head);
+
+  function applyTheme() {
+    var dark = isDark();
+    U.uDark.value = dark ? 1 : 0;
+    U.uPast.value.set(token("--thread-past"));
+    U.uFuture.value.set(token("--thread-future"));
+    U.uRim.value.set(token("--thread-rim"));
+    var blend = dark ? THREE.AdditiveBlending : THREE.NormalBlending;
+    beads.forEach(function (b) { b.sp.material.blending = blend; b.sp.material.needsUpdate = true; });
+    head.material.blending = blend; head.material.needsUpdate = true;
+  }
+  applyTheme();
+  var themeMQ = window.matchMedia("(prefers-color-scheme: dark)");
+  if (themeMQ.addEventListener) themeMQ.addEventListener("change", function () { applyTheme(); draw(); });
+  new MutationObserver(function () { applyTheme(); draw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  /* Scroll position -> time of day. Chapters land on the moments they talk about. */
+  var MAP = [[0, 0], [1 / 8, at(7, 33)], [2 / 8, at(8, 5)], [3 / 8, at(9, 3)], [4 / 8, at(15, 34)], [5 / 8, at(17, 44)], [6 / 8, at(19, 14)], [7 / 8, at(20, 24)], [1, 1]];
+  function dayAt(p) {
+    for (var k = 0; k < MAP.length - 1; k++) {
+      var a = MAP[k], b = MAP[k + 1];
+      if (p <= b[0]) { var t = (p - a[0]) / (b[0] - a[0]); t = t * t * (3 - 2 * t); return a[1] + (b[1] - a[1]) * t; }
+    }
+    return 1;
+  }
+  var progress = 0, pSmooth = 0, wide = true;
+  function measure() {
+    var total = story.offsetHeight - window.innerHeight - document.getElementById("next").offsetHeight;
+    progress = Math.min(1, Math.max(0, window.scrollY / Math.max(1, total)));
+  }
+
+  var camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), wPos = new THREE.Vector3(), wLook = new THREE.Vector3();
+  var fPos = new THREE.Vector3(), fLook = new THREE.Vector3(), tmp = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  var px = 0, py = 0, tx = 0, ty = 0, first = true, prevUh = null;
+  function smooth01(a, b, x) { var t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+
+  function frame(p, dt) {
+    var uh = dayAt(p);
+    U.uHead.value = uh;
+    var H = curve.getPointAt(Math.max(0.0001, uh));
+    head.position.copy(H);
+    var lv = musicLevel();
+    U.uPulse.value = lv;
+    if (glowEl) glowEl.style.opacity = (0.28 + lv * 0.4).toFixed(3);
+    var hs = (uh > 0.001 ? 0.42 : 0) * (lv > 0.01 ? 1 + lv * 0.55 : 1 + Math.sin(U.uTime.value * 2.2) * 0.08);
+    head.scale.set(hs, hs, 1);
+
+    /* wide view of the whole day, or following the head along the line */
+    var follow = (reduce || !wide && false) ? 0 : smooth01(0.04, 0.12, p) * (1 - smooth01(0.9, 0.99, p));
+    if (reduce) follow = 0;
+    wPos.set(wide ? -2.0 : 0, wide ? 5.0 : 7.5, wide ? 13 : 26);
+    wLook.set(wide ? -2.0 : 0, wide ? 0 : -2.2, 0);
+    var T = curve.getTangentAt(Math.min(0.9999, Math.max(0.0001, uh)));
+    tmp.copy(H).setY(0).normalize();
+    fPos.copy(H).addScaledVector(T, -6.5).addScaledVector(up, 3.2).addScaledVector(tmp, 3.4);
+    fLook.copy(H).addScaledVector(T, 1.2);
+    if (wide) { fLook.addScaledVector(new THREE.Vector3().crossVectors(T, up).normalize(), 0.9); }
+    else { fLook.y -= 0.9; }
+    var targetPos = wPos.clone().lerp(fPos, follow), targetLook = wLook.clone().lerp(fLook, follow);
+    if (first || reduce) { camPos.copy(targetPos); camLook.copy(targetLook); first = false; }
+    else { var k = Math.min(1, dt * 2.5); camPos.lerp(targetPos, k); camLook.lerp(targetLook, k); }
+    /* keep the travelling point clear of the text: right half on wide screens, upper half on phones */
+    var dir = tmp.copy(camLook).sub(camPos).normalize();
+    var right = new THREE.Vector3().crossVectors(dir, up).normalize();
+    var shift = new THREE.Vector3();
+    if (wide) shift.addScaledVector(right, -2.6 * follow); else shift.addScaledVector(up, -1.6 * follow);
+    camera.position.copy(camPos).add(shift).add(tmp.set(px * 0.8, -py * 0.5, 0));
+    camera.lookAt(tmp.copy(camLook).add(shift));
+
+    /* beads light up once the day has passed them */
+    var nearest = null, nd = 1;
+    beads.forEach(function (b) {
+      var passed = uh >= b.m.u;
+      var target = passed ? 1 : 0;
+      b.lit += (target - b.lit) * (reduce ? 1 : Math.min(1, dt * 3));
+      var col = passed ? COL[b.m.kind] : COL.quiet;
+      b.sp.material.color.copy(col);
+      var base = b.m.kind === "quiet" ? 0.3 : 0.42;
+      var s = base + b.lit * (b.m.kind === "quiet" ? 0.04 : 0.22 + (passed ? lv * 0.18 : 0));
+      b.sp.scale.set(s, s, 1);
+      b.sp.material.opacity = passed ? 1 : 0.45;
+      var d = uh - b.m.u;
+      if (d >= 0 && d < nd) { nd = d; nearest = b; }
+    });
+
+    /* the day clock and the caption for the latest moment */
+    var mins = Math.round(DAY_START + uh * DAY_LEN);
+    clockEl.textContent = "( " + String(Math.floor(mins / 60)).padStart(2, "0") + ":" + String(mins % 60).padStart(2, "0") + " )";
+    var showFor = 0.07;
+    if (nearest && nd < showFor && uh > 0.001) {
+      if (momentEl.dataset.k !== nearest.m.label) { momentEl.textContent = nearest.m.label; momentEl.dataset.k = nearest.m.label; momentEl.className = "moment " + nearest.m.kind; }
+      tmp.copy(nearest.sp.position); world.localToWorld(tmp); tmp.project(camera);
+      var W = canvas.clientWidth, Hh = canvas.clientHeight;
+      var x = (tmp.x * 0.5 + 0.5) * W, y = (-tmp.y * 0.5 + 0.5) * Hh;
+      var inView = tmp.z < 1 && x > 0 && x < W && y > 0 && y < Hh;
+      x = Math.min(Math.max(x + 18, 16), W - momentEl.offsetWidth - 16);
+      y = Math.min(Math.max(y - 12, 16), Hh - 60);
+      momentEl.style.transform = "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px)";
+      momentEl.style.opacity = inView ? String(1 - nd / showFor) : "0";
+    } else {
+      momentEl.style.opacity = "0";
+    }
+  }
+
+  var panel = canvas.parentElement;
+  function resize() {
+    var w = panel.clientWidth, h = panel.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    wide = w > 760; first = true;
+    measure(); draw(0);
+  }
+  window.addEventListener("pointermove", function (e) { tx = e.clientX / window.innerWidth - 0.5; ty = e.clientY / window.innerHeight - 0.5; }, { passive: true });
+  window.addEventListener("scroll", function () { measure(); if (reduce) { pSmooth = progress; draw(0); } }, { passive: true });
+
+  function draw(dt) { frame(pSmooth, dt || 0); renderer.render(scene, camera); }
+  var clock = new THREE.Clock();
+  function tick(dt) {
+    U.uTime.value += dt;
+    px += (tx - px) * 0.04; py += (ty - py) * 0.04;
+    pSmooth += (progress - pSmooth) * Math.min(1, dt * 3);
+    world.rotation.y = Math.sin(U.uTime.value * 0.05) * 0.12;
+  }
+  var running = false, visible = true, raf = 0;
+  function loop() { if (!running) return; var dt = Math.min(clock.getDelta(), 0.05); tick(dt); draw(dt); raf = requestAnimationFrame(loop); }
+  function start() { if (reduce || running || !visible || document.hidden) return; running = true; clock.getDelta(); raf = requestAnimationFrame(loop); }
+  function stop() { running = false; cancelAnimationFrame(raf); }
+  new IntersectionObserver(function (es) { visible = es[0].isIntersecting; visible ? start() : stop(); }).observe(stage);
+  document.addEventListener("visibilitychange", function () { document.hidden ? stop() : start(); });
+  if (reduceMQ.addEventListener) reduceMQ.addEventListener("change", function (e) { reduce = e.matches; first = true; if (reduce) { stop(); pSmooth = progress; draw(0); } else start(); });
+  canvas.addEventListener("webglcontextlost", function (e) { e.preventDefault(); stop(); canvas.hidden = true; still.removeAttribute("hidden"); });
+  window.addEventListener("resize", resize);
+
+  resize();
+  pSmooth = progress; draw(0);
+  start();
+})();
+</script>
+
+</body>
+</html>

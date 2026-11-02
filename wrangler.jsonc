@@ -1,0 +1,8 @@
+{
+	"name": "kioku",
+	"compatibility_date": "2026-10-23",
+	"assets": {
+		"directory": "."
+	},
+	"routes": [{ "pattern": "kioku.askp.one", "custom_domain": true }]
+}
