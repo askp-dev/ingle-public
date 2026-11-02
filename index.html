@@ -61,7 +61,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 /* ---------- The stage ---------- */
 .story { position: relative; }
 .stage {
-  position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; height: 100svh; margin-bottom: -100vh; margin-bottom: -100svh;
+  position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; height: 100dvh; margin-bottom: -100vh; margin-bottom: -100dvh;
   padding: var(--inset) max(var(--inset), env(safe-area-inset-right, 0px)) var(--inset) max(var(--inset), env(safe-area-inset-left, 0px));
   z-index: 0;
 }
@@ -122,7 +122,7 @@ html.js { scroll-snap-type: y proximity; }
 @media (max-width: 760px) {
   .chapter { justify-content: flex-end; padding-bottom: calc(var(--inset) + var(--pad) + 40px); }
   .chapter .inner { max-width: 100%; }
-  .js .chapter .inner { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--inset) + var(--pad) + 44px); right: calc(max(var(--inset), env(safe-area-inset-right, 0px)) + var(--pad)); }
+  .js .chapter .inner { top: auto; bottom: var(--text-bottom, calc(env(safe-area-inset-bottom, 0px) + var(--inset) + var(--pad) + 72px)); right: calc(max(var(--inset), env(safe-area-inset-right, 0px)) + var(--pad)); }
   .chapter p.line { max-width: 34ch; }
   .chrome nav { display: none; }
   .counter { grid-row: 1; align-self: start; }
@@ -329,6 +329,16 @@ html.js { scroll-snap-type: y proximity; }
   }
   window.addEventListener("scroll", syncChapter, { passive: true });
   window.addEventListener("resize", syncChapter);
+  var footEl = document.querySelector(".foot-l"), rootEl = document.documentElement;
+  function placeText() {
+    var vv = window.visualViewport, h = vv ? vv.height + vv.offsetTop : window.innerHeight;
+    rootEl.style.setProperty("--text-bottom", Math.max(0, Math.round(h - footEl.getBoundingClientRect().top + 20)) + "px");
+  }
+  placeText();
+  window.addEventListener("resize", placeText);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", placeText);
+  if (window.ResizeObserver) new ResizeObserver(placeText).observe(footEl);
+  document.fonts && document.fonts.ready.then(placeText);
   active = -2; syncChapter();
 
 
@@ -679,6 +689,7 @@ html.js { scroll-snap-type: y proximity; }
   if (reduceMQ.addEventListener) reduceMQ.addEventListener("change", function (e) { reduce = e.matches; first = true; if (reduce) { stop(); pSmooth = progress; draw(0); } else start(); });
   canvas.addEventListener("webglcontextlost", function (e) { e.preventDefault(); stop(); canvas.hidden = true; still.removeAttribute("hidden"); });
   window.addEventListener("resize", resize);
+  if (window.ResizeObserver) new ResizeObserver(function () { resize(); }).observe(panel);
 
   resize();
   pSmooth = progress; draw(0);
