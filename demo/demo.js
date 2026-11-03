@@ -643,8 +643,23 @@
     revealTimers.push(setTimeout(function () { then && then(); }, 120 + stages.length * 260));
   }
 
+  /* Rendering replaces the step list and the knobs, so remember which control had focus and restore it. */
+  function focusKey() {
+    var el = document.activeElement;
+    if (!el || !el.closest) return null;
+    if (el.closest("#steps .step-btn")) return { sel: "#steps .step-btn", attr: "data-i", val: el.getAttribute("data-i") };
+    if (el.closest("#knobs .switch")) return { sel: "#knobs .switch", attr: "data-k", val: el.getAttribute("data-k") };
+    return null;
+  }
+  function restoreFocus(k) {
+    if (!k) return;
+    var el = document.querySelector(k.sel + "[" + k.attr + '="' + k.val + '"]');
+    if (el) el.focus({ preventScroll: true });
+  }
+
   function show(i, opts) {
     opts = opts || {};
+    var fk = focusKey();
     stopVoice();
     current = i;
     results = i >= 0 ? simulate(i) : [];
@@ -653,6 +668,7 @@
     renderPipeline();
     renderLog();
     renderBudget(results[i]);
+    restoreFocus(fk);
     reveal(!!opts.animate, function () {
       var d = results[i] && results[i].decision;
       if (d && d.say) speakLine(d.say);
@@ -679,6 +695,9 @@
   }
   function speakLine(text) {
     if (!soundOn) return;
+    // Only one line at a time: cancel any clip or utterance already playing.
+    if (audio) { audio.pause(); audio = null; }
+    if (synth) synth.cancel();
     var clip = CLIPS[text];
     if (clip) {
       audio = new Audio("/voice/" + clip + ".mp3");
