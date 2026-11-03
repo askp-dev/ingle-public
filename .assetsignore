@@ -4,3 +4,7 @@ wrangler.jsonc
 README.md
 .assetsignore
 .gitignore
+worker
+.wrangler
+.dev.vars
+node_modules
