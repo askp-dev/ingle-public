@@ -4,5 +4,6 @@
 	"assets": {
 		"directory": "."
 	},
+	"previews": {},
 	"routes": [{ "pattern": "ingle.askp.one", "custom_domain": true }]
 }
